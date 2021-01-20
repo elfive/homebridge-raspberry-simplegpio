@@ -1,19 +1,18 @@
 'use strict';
 
 let Service, Characteristic, api;
-let SupportServiceType = [];
 
 const packageConfig = require('./package.json');
-const gpio = require('rpi-gpio');
+const gpio = require('onoff').Gpio;
 const { logEx, LOGLV_NONE, LOGLV_DEBUG, LOGLV_INFO, LOGLV_WARN, LOGLV_ERROR } = require('./log');
 
-function getConstructor(type) {
-    const object = SupportServiceType.find((element => element.type == type));
-    if (object === undefined) {
-        return {type: 'switch', constructor: Service.Switch};
-    } else {
-        return object;
-    }
+function PhysicToBCM(phy_pin) {
+    const map = [
+        null, null, 2, null, 3, null, 4, 14, null, 15,
+        17, 18, 27, null, 22, 23, null, 24, 10, null,
+        9, 25, 11, 8, null, 7, 0, 1, 5, null,
+        6, 12, 13, null, 19, 16, 26, 20, null, 21];
+    return map[phy_pin - 1];
 }
 
 function checkValueRange(value, min, max) {
@@ -29,7 +28,8 @@ class raspberry_simple_gpio_plugin {
         this.log = new logEx(log, getConfigValue(config.log_level, LOGLV_INFO)).log;
         this.config = config;
         this.services = [];
-        
+        this.device = null;
+        this.service = null;
         this.status = false;
 
         // function
@@ -67,149 +67,263 @@ class raspberry_simple_gpio_plugin {
         return this.services;
     }
 
+    readStoragedConfigFromFile() {
+        var result = {};
+        try {
+            const filePath = api.user.storagePath() + '/raspberry-simpleGPIO.json';
+            if (fs.existsSync(filePath)) {
+                const rawdata = fs.readFileSync(filePath);
+                if (JSON.parse(rawdata)[this.config.name] !== undefined) {
+                    result = JSON.parse(rawdata)[this.config.name];
+                }
+            }
+        } catch (error) {
+            this.log(LOGLV_ERROR, 'readstoragedConfigFromFile failed: ' + error);
+        } finally {
+            return result;
+        }
+    }
+
+    saveStoragedConfigToFile(data) {
+        var result = false;
+        const filePath = api.user.storagePath() + '/raspberry-simpleGPIO.json';
+        try {       // read
+            if (fs.existsSync(filePath)) {
+                const original_data = fs.readFileSync(filePath);
+                result = JSON.parse(original_data);
+            }
+        } catch (error) {
+            this.log(LOGLV_ERROR, 'readFileSync failed: ' + error);
+        }
+
+        try {       // write
+            if (result && result[this.config.name] !== undefined) {
+                result[this.config.name] = Object.assign(result[this.config.name], data)
+            } else {
+                result = {};
+                result[this.config.name] = data;
+            }
+            const rawdata = JSON.stringify(result);
+            fs.writeFileSync(filePath, rawdata);
+            return true;
+        } catch (error) {
+            this.log(LOGLV_ERROR, 'saveStoragedConfigToFile failed: ' + error);
+        }
+    }
+
     // config usability check
     // return valid config or null
     configCheck(config) {
+        config.name = getConfigValue(config.name, 'Raspberry-GPIO');
+
+        if (null === PhysicToBCM(config.pin)) {
+            this.log(LOGLV_ERROR, 'pin ' + config.pin + ' is not controllable.');
+            return null;
+        }
+
+        config.reverse_status = getConfigValue(config.reverse_status, false);
+
+        if (undefined === config.init_status) {
+            config.init_status = 'off';
+        } else if (config.init_status !== 'on' && config.init_status !== 'off') {
+            this.log(LOGLV_ERROR, 'value of init_status can only be on or off.');
+            return null;
+        }
+        
+        config.log_level = getConfigValue(config.log_level, LOGLV_INFO);
+
         return config;
+    }
+    
+    getInitPinStatusFromConfigure() {
+        return (this.config.init_status === 'on' ? 1 : 0);
+    }
+
+    // return 0:OFF,1:ON
+    convertPinStatusToOnOff(pinStatus) {
+        return (pinStatus === 1);
+    }
+
+    // return 0:LOW,1:HIGH
+    convertOnOffToPinStatus(onOrOFF) {
+        return (onOrOFF ? 1 : 0);
     }
 
     create_service() {
-        var service = null;
-        switch (this.config.type) {
-            case 'fan':
-                this.log(LOGLV_DEBUG, 'initializing accessory: fan');
-                service = new Service.Fan(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.On, false);
-                service.getCharacteristic(Characteristic.On)
-                    .on('get', this.hb_get_status.bind(this))
-                    .on('set', this.hb_set_status.bind(this));
+        var gpio_options = {
+            activeLow : this.config.reverse_status
+        };
 
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_OUT, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.On, status);
-                });
+        const onGPIOValueChange = (device, service, characteristic) => {
+            device.watch((err, value) => {
+                if (err) {
+                    this.log(LOGLV_ERROR, err);
+                } else {
+                    const status = this.convertPinStatusToOnOff(value);
+                    service.setCharacteristic(characteristic, status);
+                }
+            });
+        };
+
+        const setupGPIOOutService = (constructor, characteristic, name, accessory_type, gpio_options) => {
+            var service = null;
+            if (gpio.accessible) {
+                this.log(LOGLV_DEBUG, 'initializing accessory: ' + accessory_type);
+            
+                var service = null;
+                const initPinStatus = this.getInitPinStatusFromConfigure();
+                const initPinValue = initPinStatus === 1 ? (this.config.reverse_status ? 'low' : 'high') : (this.config.reverse_status ? 'high' : 'low');
+                const device = new gpio(PhysicToBCM(this.config.pin), initPinValue, gpio_options);
+                if (device) {
+                    const status = this.convertPinStatusToOnOff(initPinStatus);
+                    
+                    service = new constructor(name);
+                    service.setCharacteristic(characteristic, status);
+                    service.getCharacteristic(characteristic)
+                        .on('get', this.hb_get_status.bind(this))
+                        .on('set', this.hb_set_status.bind(this));
+                    
+                    onGPIOValueChange(device, service, characteristic);
+    
+                    process.on('SIGINT', _ => {
+                        this.log(LOGLV_INFO, 'uninitializing accesssory.');
+                        device.unexport();
+                    });
+    
+                    this.log(LOGLV_INFO, 'successfully initizlized accessory.');
+    
+                    this.device = device;
+                } else {
+                    this.log(LOGLV_DEBUG, 'unable to initialize accessory fan with gpio pin: ' + this.config.pin);
+                }
+            } else {
+                this.log(LOGLV_DEBUG, 'current system not support gpio operations.');
+            }
+
+            return service;
+        };
+
+        const setupGPIOInService = (constructor, characteristic, name, accessory_type, gpio_options) => {
+            this.log(LOGLV_DEBUG, 'initializing accessory: ' + accessory_type);
+                
+            var service = null;
+            const initPinStatus = this.getInitPinStatusFromConfigure();
+            const device = new gpio(PhysicToBCM(this.config.pin), 'in', 'both', gpio_options);
+            if (device) {
+                const status = this.convertPinStatusToOnOff(initPinStatus);
+                
+                service = new constructor(name);
+                service.setCharacteristic(characteristic, status);
+                service.getCharacteristic(characteristic)
+                    .on('get', this.hb_get_status.bind(this));
+                
+                onGPIOValueChange(device, service, characteristic);
+                this.log(LOGLV_INFO, 'successfully initizlized accessory.');
+
+                this.device = device;
+            } else {
+                this.log(LOGLV_DEBUG, 'unable to initialize accessory contact_sensor with gpio pin: ' + this.config.pin);
+            }
+            return service;
+        };
+
+        var service = null;
+        switch (this.config.accessory_type) {
+            case 'fan':
+                service = setupGPIOOutService(
+                    Service.Fan,
+                    Characteristic.On,
+                    this.config.name,
+                    'fan',
+                    gpio_options);
                 break;
             case 'outlet':
-                this.log(LOGLV_DEBUG, 'initializing accessory: outlet');
-                service = new Service.Outlet(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.On, false);
-                service.getCharacteristic(Characteristic.On)
-                    .on('get', this.hb_get_status.bind(this))
-                    .on('set', this.hb_set_status.bind(this));
-                
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_OUT, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.On, status);
-                });
+                service = setupGPIOOutService(
+                    Service.Outlet,
+                    Characteristic.On,
+                    this.config.name,
+                    'outlet',
+                    gpio_options);
                 break;
             case 'switch':
-                this.log(LOGLV_DEBUG, 'initializing accessory: switch');
-                service = new Service.Switch(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.On, false);
-                service.getCharacteristic(Characteristic.On)
-                    .on('get', this.hb_get_status.bind(this))
-                    .on('set', this.hb_set_status.bind(this));
-                
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_OUT, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.On, status);
-                });
+                service = setupGPIOOutService(
+                    Service.Switch,
+                    Characteristic.On,
+                    this.config.name,
+                    'switch',
+                    gpio_options);
                 break;
             case 'contact_sensor':
-                this.log(LOGLV_DEBUG, 'initializing accessory: contact_sensor');
-                service = new Service.ContactSensor(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.ContactSensorState, false);
-                service.getCharacteristic(Characteristic.ContactSensorState)
-                    .on('get', this.hb_get_status.bind(this));
-                
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_IN, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.ContactSensorState, status);
-                });
+                service = setupGPIOInService(
+                    Service.ContactSensor,
+                    Characteristic.ContactSensorState,
+                    this.config.name,
+                    'contact_sensor',
+                    gpio_options);
                 break;
             case 'leak_sensor':
-                this.log(LOGLV_DEBUG, 'initializing accessory: leak_sensor');
-                service = new Service.LeakSensor(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.LeakDetected, false);
-                service.getCharacteristic(Characteristic.LeakDetected)
-                    .on('get', this.hb_get_status.bind(this));
-                
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_IN, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.LeakDetected, status);
-                });
+                service = setupGPIOInService(
+                    Service.LeakSensor,
+                    Characteristic.LeakDetected,
+                    this.config.name,
+                    'leak_sensor',
+                    gpio_options);
                 break;
             case 'motion_sensor':
-                this.log(LOGLV_DEBUG, 'initializing accessory: motion_sensor');
-                service = new Service.MotionSensor(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.MotionDetected, false);
-                service.getCharacteristic(Characteristic.MotionDetected)
-                    .on('get', this.hb_get_status.bind(this));
-                
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_IN, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.MotionDetected, status);
-                });
+                service = setupGPIOInService(
+                    Service.MotionSensor,
+                    Characteristic.MotionDetected,
+                    this.config.name,
+                    'motion_sensor',
+                    gpio_options);
                 break;
             case 'occupancy_sensor':
-                this.log(LOGLV_DEBUG, 'initializing accessory: occupancy_sensor');
-                service = new Service.OccupancySensor(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.On, false);
-                service.getCharacteristic(Characteristic.On)
-                    .on('get', this.hb_get_status.bind(this));
-                
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_IN, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.OccupancyDetected, status);
-                });
+                service = setupGPIOInService(
+                    Service.OccupancySensor,
+                    Characteristic.OccupancyDetected,
+                    this.config.name,
+                    'occupancy_sensor',
+                    gpio_options);
                 break;
             case 'smoke_sensor':
-                this.log(LOGLV_DEBUG, 'initializing accessory: smoke_sensor');
-                service = new Service.SmokeSensor(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.SmokeDetected, false);
-                service.getCharacteristic(Characteristic.SmokeDetected)
-                    .on('get', this.hb_get_status.bind(this));
-                
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_IN, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.SmokeDetected, status);
-                });
+                service = setupGPIOInService(
+                    Service.SmokeSensor,
+                    Characteristic.SmokeDetected,
+                    this.config.name,
+                    'smoke_sensor',
+                    gpio_options);
                 break;
             default:
-                this.log(LOGLV_WARN, 'unsupported accessory: ' + this.config.type + ', using switch instead');
-                this.config.type = 'switch';
-                this.log(LOGLV_DEBUG, 'initializing accessory: switch');
-                service = new Service.Switch(this.config.name, this.config.name);
-                service.setCharacteristic(Characteristic.On, false);
-                service.getCharacteristic(Characteristic.On)
-                    .on('get', this.hb_get_status.bind(this))
-                    .on('set', this.hb_set_status.bind(this));
-                
-                // gpio
-                gpio.setup(this.config.pin, gpio.DIR_OUT, (status) => {
-                    this.status = status;
-                    service.setCharacteristic(Characteristic.On, status);
-                });
+                this.log(LOGLV_WARN, 'unsupported accessory: ' + this.config.accessory_type + ', using switch instead');
+                this.config.accessory_type = 'switch';
+                service = setupGPIOOutService(
+                    Service.Switch,
+                    Characteristic.On,
+                    this.config.name,
+                    'switch',
+                    gpio_options);
         }
 
         return service;
     }
 
     hb_get_status(callback) {
-        callback(null, this.state);
+        this.device.read((err, value) => {
+            if (err) {
+                this.log(LOGLV_ERROR, 'get accessory status error: ' + err);
+            } else {
+                callback(null, value);
+            }
+        });
     }
 
     hb_set_status(value, callback) {
-        this.state = value;
-        callback(null);
+        this.device.write(value ? 1 : 0, (err) => {
+            if (err) {
+                this.log(LOGLV_ERROR, 'set accessory status error: ' + err);
+            }
+            callback(null);
+        });
     }
 }
 
@@ -217,16 +331,5 @@ module.exports = function (homebridge) {
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
     api = homebridge;
-
-    // add supported services
-    SupportServiceType.push({type: 'fan', constructor: Service.Fan, characteristic: Characteristic.On});
-    SupportServiceType.push({type: 'outlet', constructor: Service.Outlet});
-    SupportServiceType.push({type: 'switch', constructor: Service.Switch});
-    SupportServiceType.push({type: 'contact_sensor', constructor: Service.ContactSensor});
-    SupportServiceType.push({type: 'leak_sensor', constructor: Service.LeakSensor});
-    SupportServiceType.push({type: 'motion_sensor', constructor: Service.MotionSensor});
-    SupportServiceType.push({type: 'occupancy_sensor', constructor: Service.OccupancySensor});
-    SupportServiceType.push({type: 'smoke_sensor', constructor: Service.SmokeSensor});
-
     homebridge.registerAccessory('homebridge-raspberry-simpleGPIO', 'raspberry_simple_gpio', raspberry_simple_gpio_plugin);
 }

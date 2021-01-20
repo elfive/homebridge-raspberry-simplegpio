@@ -1,0 +1,115 @@
+{
+    "pluginAlias": "raspberry_simple_gpio",
+    "pluginType": "accessory",
+    "headerDisplay": "For documentation please see https://github.com/elfive/homebridge-raspberry-simpleGPIO",
+    "footerDisplay": "",
+    "schema": {
+        "name": {
+            "title": "name",
+            "description": "Device name shows in HomeKit",
+            "required": true,
+            "type": "string",
+            "default": "Raspberry-GPIO",
+            "placeholder": "Raspberry-GPIO"
+        },
+        "accessory_type": {
+            "title": "accessory_type",
+            "description": "Accessory type shows in Homekit.",
+            "required": true,
+            "type": "string",
+            "default": "switch",
+            "oneOf": [
+                { "title": "Fan", "enum": ["fan"] },
+                { "title": "Outlet", "enum": ["outlet"] },
+                { "title": "Switch(default)", "enum": ["switch"] },
+                { "title": "Contact Sensor", "enum": ["contact_sensor"] },
+                { "title": "Leak Sensor", "enum": ["leak_sensor"] },
+                { "title": "Motion Sensor", "enum": ["motion_sensor"] },
+                { "title": "Occupancy Sensor", "enum": ["occupancy_sensor"] },
+                { "title": "Smoke Sensor", "enum": ["smoke_sensor"] }
+            ]
+        },
+        "pin": {
+            "title": "pin",
+            "description": "GPIO Pin number in physical mode.",
+            "required": true,
+            "type": "integer",
+            "default": 40,
+            "oneOf": [
+                { "title": "GPIO-3", "enum": [3] },
+                { "title": "GPIO-5", "enum": [5] },
+                { "title": "GPIO-7", "enum": [7] },
+                { "title": "GPIO-8", "enum": [8] },
+                { "title": "GPIO-10", "enum": [10] },
+                { "title": "GPIO-11", "enum": [11] },
+                { "title": "GPIO-12", "enum": [12] },
+                { "title": "GPIO-13", "enum": [13] },
+                { "title": "GPIO-15", "enum": [15] },
+                { "title": "GPIO-16", "enum": [16] },
+                { "title": "GPIO-18", "enum": [18] },
+                { "title": "GPIO-19", "enum": [19] },
+                { "title": "GPIO-21", "enum": [21] },
+                { "title": "GPIO-22", "enum": [22] },
+                { "title": "GPIO-23", "enum": [23] },
+                { "title": "GPIO-24", "enum": [24] },
+                { "title": "GPIO-26", "enum": [26] },
+                { "title": "GPIO-27", "enum": [27] },
+                { "title": "GPIO-28", "enum": [28] },
+                { "title": "GPIO-29", "enum": [29] },
+                { "title": "GPIO-31", "enum": [31] },
+                { "title": "GPIO-32", "enum": [32] },
+                { "title": "GPIO-33", "enum": [33] },
+                { "title": "GPIO-35", "enum": [35] },
+                { "title": "GPIO-36", "enum": [36] },
+                { "title": "GPIO-37", "enum": [37] },
+                { "title": "GPIO-38", "enum": [38] },
+                { "title": "GPIO-40", "enum": [40] }
+            ]
+        },
+        "reverse_status": {
+            "title": "reverse_status",
+            "description": "If true then on for low, off for high; if false then on for high, off for low.",
+            "required": true,
+            "type": "boolean",
+            "default": false
+        },
+        "init_status": {
+            "title": "init_status",
+            "description": "Init accessory status.",
+            "required": true,
+            "type": "string",
+            "default": "off",
+            "oneOf": [
+                { "title": "ON", "enum": ["on"] },
+                { "title": "OFF(default)", "enum": ["off"] }
+            ],
+            "condition": {
+                "functionBody": "try { return (model.accessory_type==='fan' || model.accessory_type==='outlet' || model.accessory_type==='switch') } catch(e){ return true }"
+            }
+        },
+        "log_level": {
+            "title": "log_level",
+            "description": "Only logs level higher than the level selected",
+            "required": true,
+            "type": "integer",
+            "default": 1,
+            "oneOf": [
+                { "title": "Debug", "enum": [1] },
+                { "title": "Info", "enum": [2] },
+                { "title": "Warn", "enum": [3] },
+                { "title": "Error", "enum": [4] },
+                { "title": "None", "enum": [9] }
+            ]
+        }
+    },
+    "form": null,
+    "display": null,
+    "layout": [
+        "name",
+        "accessory_type",
+        "pin",
+        "reverse_status",
+        "init_status",
+        "log_level"
+    ]
+}
