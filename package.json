@@ -4,7 +4,8 @@
   "description": "control your raspberrry pi GPIO pins from homekit",
   "main": "index.js",
   "scripts": {
-    "test": "/usr/bin/homebridge -P ./ -I -U /var/lib/homebridge"
+    "test-homebridge": "/usr/bin/homebridge -P ./ -I -U /var/lib/homebridge",
+    "test": "echo Ok."
   },
   "repository": {
     "type": "git",
