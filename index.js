@@ -33,7 +33,7 @@ class raspberry_simple_gpio_plugin {
         this.status = false;
 
         // function
-        this.accessory_update_status = (status) => this.log(LOGLV_ERROR, 'can not update senser status yet.');
+        this.accessory_update_status = (status) => this.log(LOGLV_WARN, 'can not update senser status yet.');
     }
 
     getServices() {
@@ -294,14 +294,8 @@ class raspberry_simple_gpio_plugin {
                     gpio_options);
                 break;
             default:
-                this.log(LOGLV_WARN, 'unsupported accessory: ' + this.config.accessory_type + ', using switch instead');
-                this.config.accessory_type = 'switch';
-                service = setupGPIOOutService(
-                    Service.Switch,
-                    Characteristic.On,
-                    this.config.name,
-                    'switch',
-                    gpio_options);
+                this.log(LOGLV_ERROR, 'unsupported accessory: ' + this.config.accessory_type);
+                break;
         }
 
         return service;
