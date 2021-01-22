@@ -1,8 +1,9 @@
 'use strict';
 
 let Service, Characteristic, api;
-
+let pin_duplicated = [];
 const packageConfig = require('./package.json');
+const fs = require('fs');
 const gpio = require('onoff').Gpio;
 const { logEx, LOGLV_NONE, LOGLV_DEBUG, LOGLV_INFO, LOGLV_WARN, LOGLV_ERROR } = require('./log');
 
@@ -13,6 +14,26 @@ function PhysicToBCM(phy_pin) {
         9, 25, 11, 8, null, 7, 0, 1, 5, null,
         6, 12, 13, null, 19, 16, 26, 20, null, 21];
     return map[phy_pin - 1];
+}
+
+function checkDuplicatePin() {
+    let duplicatePins = [];
+    try {
+        let config = JSON.parse(fs.readFileSync(api.user.configPath()));
+        let pins = config.accessories.filter((accessory) => {
+            return (accessory.accessory === 'raspberry_simple_gpio' && accessory.pin !== undefined);
+        }).map(accessory => accessory.pin);
+        duplicatePins = [...new Set(pins.filter(pin => pins.indexOf(pin) !== pins.lastIndexOf(pin)))];
+    } catch (error) {
+        if (error) {
+            console.log('could not find duplicate Pins in config.json: ' + error);
+        }
+    } finally {
+        if (duplicatePins.count > 0) {
+            console.log('find duplicate Pins in config.json: ' + JSON.stringify(duplicatePins));
+        }
+        return duplicatePins;
+    }
 }
 
 function checkValueRange(value, min, max) {
@@ -37,6 +58,7 @@ class raspberry_simple_gpio_plugin {
     }
 
     getServices() {
+        
         // check config usability
         this.log(LOGLV_DEBUG, 'check config usability...');
         this.config = this.configCheck(this.config)
@@ -44,6 +66,11 @@ class raspberry_simple_gpio_plugin {
             this.log(LOGLV_ERROR, 'config usability check failed.');
             return this.services;
         }
+        if (pin_duplicated.indexOf(this.config.pin) > -1) {
+            this.log(LOGLV_ERROR, 'config.json contains duplicate pin: ' + this.config.pin);
+            return this.services;
+        }
+
         this.log(LOGLV_DEBUG, 'config usability check passed.');
 
         // create_service
@@ -325,5 +352,6 @@ module.exports = function (homebridge) {
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
     api = homebridge;
+    pin_duplicated = checkDuplicatePin();
     homebridge.registerAccessory('homebridge-raspberry-simpleGPIO', 'raspberry_simple_gpio', raspberry_simple_gpio_plugin);
 }
