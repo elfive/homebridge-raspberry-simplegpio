@@ -20,7 +20,7 @@ class configUtil {
     static readStoragedConfigFromFile(filePath) {
         var result = undefined;
         try {
-            // const filePath = api.user.storagePath() + '/raspberry-simpleGPIO.json';
+            // const filePath = api.user.storagePath() + '/raspberry-simplegpio.json';
             if (fs.existsSync(filePath)) {
                 const rawdata = fs.readFileSync(filePath);
                 const accessory_name = this.config.get('name');
@@ -37,7 +37,7 @@ class configUtil {
 
     static saveStoragedConfigToFile(filePath, data) {
         var result = undefined;
-        // const filePath = api.user.storagePath() + '/raspberry-simpleGPIO.json';
+        // const filePath = api.user.storagePath() + '/raspberry-simplegpio.json';
         try {       // read
             if (fs.existsSync(filePath)) {
                 const original_data = fs.readFileSync(filePath);
