@@ -274,7 +274,7 @@ module.exports = function (homebridge) {
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
     api = homebridge;
-    storagePath = api.user.storagePath() + '/raspberry-simpleGPIO.json';
+    storagePath = api.user.storagePath() + '/raspberry-simplegpio.json';
     pin_duplicated = checkDuplicatePin();
-    homebridge.registerAccessory('homebridge-raspberry-simpleGPIO', 'raspberry_simple_gpio', raspberry_simple_gpio_plugin);
+    homebridge.registerAccessory('homebridge-raspberry-simplegpio', 'raspberry_simple_gpio', raspberry_simple_gpio_plugin);
 }

@@ -1,5 +1,5 @@
 {
-  "name": "homebridge-raspberry-simpleGPIO",
+  "name": "homebridge-raspberry-simplegpio",
   "version": "1.0.0",
   "description": "control your raspberrry pi GPIO pins from homekit",
   "main": "index.js",
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/elfive/homebridge-raspberry-simpleGPIO.git"
+    "url": "git+https://github.com/elfive/homebridge-raspberry-simplegpio.git"
   },
   "keywords": [
     "homebridge",
@@ -25,9 +25,9 @@
   "author": "elfive@elfive.cn",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/elfive/homebridge-raspberry-simpleGPIO/issues"
+    "url": "https://github.com/elfive/homebridge-raspberry-simplegpio/issues"
   },
-  "homepage": "https://github.com/elfive/homebridge-raspberry-simpleGPIO#readme",
+  "homepage": "https://github.com/elfive/homebridge-raspberry-simplegpio#readme",
   "dependencies": {
     "onoff": "^6.0.1"
   }

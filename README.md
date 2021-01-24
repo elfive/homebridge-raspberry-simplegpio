@@ -1,4 +1,4 @@
-## homebridge-raspberry-simpleGPIO
+## homebridge-raspberry-simplegpio
 
 currently this plugin is still under test.
 no readme.md until 2021/01/25.

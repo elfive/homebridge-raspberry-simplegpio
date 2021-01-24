@@ -1,7 +1,7 @@
 {
     "pluginAlias": "raspberry_simple_gpio",
     "pluginType": "accessory",
-    "headerDisplay": "For documentation please see https://github.com/elfive/homebridge-raspberry-simpleGPIO",
+    "headerDisplay": "For documentation please see https://github.com/elfive/homebridge-raspberry-simplegpio",
     "footerDisplay": "",
     "schema": {
         "name": {
