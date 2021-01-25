@@ -43,7 +43,7 @@ function checkDuplicatePin() {
 class raspberry_simple_gpio_plugin {
     constructor(log, config) {
         this.config = new configUtil(config);
-        this.log = new logUtil(log, this.config.fulfill(config.log_level, logUtil.LOGLV_INFO));
+        this.log = new logUtil(log, this.config.fulfill('log_level', logUtil.LOGLV_INFO));
         this.services = [];
 
         // function
