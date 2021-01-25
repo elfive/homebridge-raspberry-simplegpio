@@ -1,6 +1,6 @@
 {
   "name": "homebridge-raspberry-simplegpio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "control your raspberrry pi GPIO pins from homekit",
   "main": "index.js",
   "scripts": {
