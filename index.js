@@ -12,6 +12,10 @@ const Gpio = require('onoff').Gpio;
 
 
 function PhysicToBCM(phy_pin) {
+    if ((typeof phy_pin !== 'number' && phy_pin !== NaN) ||
+        phy_pin < 1 || phy_pin > 40)
+        return null;
+
     const map = [
         null, null, 2, null, 3, null, 4, 14, null, 15,
         17, 18, 27, null, 22, 23, null, 24, 10, null,
