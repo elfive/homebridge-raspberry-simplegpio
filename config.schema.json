@@ -75,13 +75,14 @@
         },
         "init_status": {
             "title": "init_status",
-            "description": "Init accessory status.",
+            "description": "Init accessory status.<br/>Note: please ensure your pin direction is out, if you choose ignore",
             "required": true,
             "type": "string",
-            "default": "off",
+            "default": "ignore",
             "oneOf": [
                 { "title": "ON", "enum": ["on"] },
-                { "title": "OFF(default)", "enum": ["off"] }
+                { "title": "OFF", "enum": ["off"] },
+                { "title": "Ignore(default)", "enum": ["ignore"] }
             ],
             "condition": {
                 "functionBody": "try { return (model.accessory_type==='fan' || model.accessory_type==='outlet' || model.accessory_type==='switch') } catch(e){ return true }"

@@ -104,18 +104,14 @@ class raspberry_simple_gpio_plugin {
 
         if (undefined === this.config.get('init_status')) {
             this.config.set(init_status, 'off');
-        } else if (!this.config.checkValueValid('init_status', ['on', 'off'])) {
-            this.log.error('value of init_status can only be on or off.');
+        } else if (!this.config.checkValueValid('init_status', ['on', 'off', 'ignore'])) {
+            this.log.error('value of init_status can only be on/off/ignore.');
             return false;
         }
         
         return true;
     }
     
-    getInitPinStatusFromConfigure() {
-        return (this.config.get('init_status') === 'on' ? 1 : 0);
-    }
-
     // return 0:OFF,1:ON
     convertPinStatusToOnOff(pinStatus) {
         return (pinStatus === 1);
@@ -127,8 +123,41 @@ class raspberry_simple_gpio_plugin {
     }
 
     create_service() {
-        var gpio_options = {
-            activeLow : this.config.get('reverse_status')
+        const getServiceConfigures = (direction) => {
+            let gpio_options = {
+                activeLow : this.config.get('reverse_status'),
+                reconfigureDirection : true
+            };
+
+            switch (direction) {
+                case 'in':
+                    return {gpio_options};
+                case 'out':
+                default:
+                    let initPinValue = 'out';
+                    let initServiceStatus = false;
+                    let init_status = this.config.get('init_status');
+                    switch (init_status) {
+                        case 'on':
+                            initPinValue = this.config.get('reverse_status') ? 'low' : 'high';
+                            gpio_options.reconfigureDirection = true;
+                            initServiceStatus = true;
+                            break;
+                        case 'off':
+                            initPinValue = this.config.get('reverse_status') ? 'high' : 'low';
+                            gpio_options.reconfigureDirection = true;
+                            initServiceStatus = false;
+                            break;
+                        case 'ignore': 
+                        default:
+                            init_status = 'ignore';
+                            initPinValue = 'out';
+                            gpio_options.reconfigureDirection = false;
+                            break;
+                    }
+                    return {gpio_options, init_status, initPinValue, initServiceStatus};
+            }
+
         };
 
         const onGPIOValueChange = (device, service, characteristic) => {
@@ -142,20 +171,21 @@ class raspberry_simple_gpio_plugin {
             });
         };
 
-        const setupGPIOOutService = (constructor, characteristic, name, accessory_type, gpio_options) => {
+        const setupGPIOOutService = (constructor, characteristic, name, accessory_type) => {
             this.log.debug('initializing accessory: ' + accessory_type);
-        
-            var service = null;
+            let service = null;
+
+            const {gpio_options, init_status, initPinValue, initServiceStatus} = getServiceConfigures('out');
             const pin = this.config.get('pin');
-            const initPinStatus = this.getInitPinStatusFromConfigure();
-            const reverse_status = this.config.get('reverse_status');
-            const initPinValue = initPinStatus === 1 ? (reverse_status ? 'low' : 'high') : (reverse_status ? 'high' : 'low');
             const gpio = new Gpio(PhysicToBCM(pin), initPinValue, gpio_options);
             if (gpio) {
-                const status = this.convertPinStatusToOnOff(initPinStatus);
-                
+                let serviceStatus = initServiceStatus;
+                if (init_status == 'ignore') {
+                    serviceStatus = gpio.readSync();
+                }
+
                 service = new constructor(name);
-                service.setCharacteristic(characteristic, status);
+                service.setCharacteristic(characteristic, serviceStatus);
                 service.getCharacteristic(characteristic)
                     .on('get', this.hb_get_status.bind(this, gpio))
                     .on('set', this.hb_set_status.bind(this, gpio));
@@ -175,18 +205,18 @@ class raspberry_simple_gpio_plugin {
             return service;
         };
 
-        const setupGPIOInService = (constructor, characteristic, name, accessory_type, gpio_options) => {
+        const setupGPIOInService = (constructor, characteristic, name, accessory_type) => {
             this.log.debug('initializing accessory: ' + accessory_type);
                 
-            var service = null;
+            let service = null;
+            const {gpio_options} = getServiceConfigures('in');
             const pin = this.config.get('pin');
-            const initPinStatus = this.getInitPinStatusFromConfigure();
             const gpio = new Gpio(PhysicToBCM(pin), 'in', 'both', gpio_options);
             if (gpio) {
-                const status = this.convertPinStatusToOnOff(initPinStatus);
-                
+                let serviceStatus = gpio.readSync();
+
                 service = new constructor(name);
-                service.setCharacteristic(characteristic, status);
+                service.setCharacteristic(characteristic, serviceStatus);
                 service.getCharacteristic(characteristic)
                     .on('get', this.hb_get_status.bind(this, gpio));
                 
@@ -198,7 +228,7 @@ class raspberry_simple_gpio_plugin {
             return service;
         };
 
-        var service = null;
+        let service = null;
         if (Gpio.accessible) {
             const name = this.config.get('name');
             const accesssory_type = this.config.get('accessory_type');
@@ -206,42 +236,42 @@ class raspberry_simple_gpio_plugin {
                 case 'fan':
                     service = setupGPIOOutService(
                         Service.Fan, Characteristic.On,
-                        name, accesssory_type, gpio_options);
+                        name, accesssory_type);
                     break;
                 case 'outlet':
                     service = setupGPIOOutService(
                         Service.Outlet, Characteristic.On,
-                        name, accesssory_type, gpio_options);
+                        name, accesssory_type);
                     break;
                 case 'switch':
                     service = setupGPIOOutService(
                         Service.Switch, Characteristic.On,
-                        name, accesssory_type, gpio_options);
+                        name, accesssory_type);
                     break;
                 case 'contact_sensor':
                     service = setupGPIOInService(
                         Service.ContactSensor, Characteristic.ContactSensorState,
-                        name, accesssory_type, gpio_options);
+                        name, accesssory_type);
                     break;
                 case 'leak_sensor':
                     service = setupGPIOInService(
                         Service.LeakSensor, Characteristic.LeakDetected,
-                        name, accesssory_type, gpio_options);
+                        name, accesssory_type);
                     break;
                 case 'motion_sensor':
                     service = setupGPIOInService(
                         Service.MotionSensor, Characteristic.MotionDetected,
-                        name, accesssory_type, gpio_options);
+                        name, accesssory_type);
                     break;
                 case 'occupancy_sensor':
                     service = setupGPIOInService(
                         Service.OccupancySensor, Characteristic.OccupancyDetected,
-                        name, accesssory_type, gpio_options);
+                        name, accesssory_type);
                     break;
                 case 'smoke_sensor':
                     service = setupGPIOInService(
                         Service.SmokeSensor, Characteristic.SmokeDetected,
-                        name, accesssory_type, gpio_options);
+                        name, accesssory_type);
                     break;
                 default:
                     this.log.error('unsupported accessory: ' + accessory_type);
