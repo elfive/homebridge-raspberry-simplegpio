@@ -23,6 +23,7 @@ control your raspberrry pi GPIO pins from homekit.
 
 - customize homekit accessory type
 - no extra configure except homebridge config.json
+- ...
 
 
 
@@ -30,7 +31,7 @@ control your raspberrry pi GPIO pins from homekit.
 
 - from the plugin name, you may know that, this plugin only support those accesscories which can controled by a single pin.
   like switch, led, buzzer, relay...
-- due to some restrictions initial pin status can only be high or low, ignore is not supported.
+- ...
 
 
 
@@ -44,15 +45,15 @@ control your raspberrry pi GPIO pins from homekit.
 
 ### config.json field
 
-|  field   name  |  type  | required |         default         |       range       | description                                                  |
-| :------------: | :----: | :------: | :---------------------: | :---------------: | ------------------------------------------------------------ |
-|   accessory    | string |   yes    | 'raspberry_simple_gpio' |        ---        | homebridge required, must be 'raspberry_simple_gpio'         |
-|      name      | string |   yes    |    'Raspberry-GPIO'     |        ---        | device name shows in HomeKit.                                |
-| accessory_type | string |   yes    |        'switch'         | *see description* | one of these values:<br/>- fan<br/>- outlet<br/>- switch<br/>- contact_senser<br/>- leak_senser<br/>- motion_senser<br/>- occupancy_senser<br/>- smoke_senser |
-|      pin       |  int   |   yes    |           ---           |       1-40        | raspberry GPIO pin number in **physical** mode, **NOT wPi or BCM mode** |
-| reverse_status |  bool  |    no    |          false          |    true/false     | reverse pin status. If true then on for low, off for high; if false then on for high, off for low. |
-|  init_status   | string |    no    |          'off'          |    'on'/'off'     | Init accessory status.                                       |
-|   log_level    |  int   |    no    |            2            |     1,2,3,4,9     | one of these values:<br/>- 1: Debug<br/>- 2: Info<br/>- 3: Warn<br/>- 4: Error<br/>- 9: None |
+|  field   name  |  type  | required |         default         |        range        | description                                                  |
+| :------------: | :----: | :------: | :---------------------: | :-----------------: | ------------------------------------------------------------ |
+|   accessory    | string |   yes    | 'raspberry_simple_gpio' |         ---         | homebridge required, must be 'raspberry_simple_gpio'         |
+|      name      | string |   yes    |    'Raspberry-GPIO'     |         ---         | device name shows in HomeKit.                                |
+| accessory_type | string |   yes    |        'switch'         |  *see description*  | one of these values:<br/>- fan<br/>- outlet<br/>- switch<br/>- contact_senser<br/>- leak_senser<br/>- motion_senser<br/>- occupancy_senser<br/>- smoke_senser |
+|      pin       |  int   |   yes    |           ---           |        1-40         | raspberry GPIO pin number in **physical** mode, **NOT wPi or BCM mode** |
+| reverse_status |  bool  |    no    |          false          |     true/false      | reverse pin status. If true then on for low, off for high; if false then on for high, off for low. |
+|  init_status   | string |    no    |          'off'          | 'on'/'off'/'ignore' | Init accessory status.                                       |
+|   log_level    |  int   |    no    |            2            |      1,2,3,4,9      | one of these values:<br/>- 1: Debug<br/>- 2: Info<br/>- 3: Warn<br/>- 4: Error<br/>- 9: None |
 
 
 
