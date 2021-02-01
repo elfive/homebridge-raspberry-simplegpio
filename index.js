@@ -95,6 +95,13 @@ class raspberry_simple_gpio_plugin {
     configCheck() {
         this.config.fulfill('name', 'Raspberry-GPIO');
 
+        if (!this.config.checkValueValid('accessory_type', 
+            ['fan', 'outlet', 'switch', 'contact_senser', 'leak_senser',
+            'motion_senser', 'occupancy_senser', 'smoke_senser'])) {
+            this.log.error('value of accessory_type can only be fan/outlet/switch/contact_senser/leak_senser/motion_senser/occupancy_senser/smoke_senser');
+            return false;
+        }
+
         if (null === PhysicToBCM(this.config.get('pin'))) {
             this.log.error('pin ' + config.pin + ' is not controllable.');
             return false;
@@ -129,35 +136,32 @@ class raspberry_simple_gpio_plugin {
                 reconfigureDirection : true
             };
 
-            switch (direction) {
-                case 'in':
-                    return {gpio_options};
-                case 'out':
-                default:
-                    let initPinValue = 'out';
-                    let initServiceStatus = false;
-                    let init_status = this.config.get('init_status');
-                    switch (init_status) {
-                        case 'on':
-                            initPinValue = this.config.get('reverse_status') ? 'low' : 'high';
-                            gpio_options.reconfigureDirection = true;
-                            initServiceStatus = true;
-                            break;
-                        case 'off':
-                            initPinValue = this.config.get('reverse_status') ? 'high' : 'low';
-                            gpio_options.reconfigureDirection = true;
-                            initServiceStatus = false;
-                            break;
-                        case 'ignore': 
-                        default:
-                            init_status = 'ignore';
-                            initPinValue = 'out';
-                            gpio_options.reconfigureDirection = false;
-                            break;
-                    }
-                    return {gpio_options, init_status, initPinValue, initServiceStatus};
+            if (direction !== 'in') {
+                let initPinValue = 'out';
+                let initServiceStatus = false;
+                let init_status = this.config.get('init_status');
+                switch (init_status) {
+                    case 'on':
+                        initPinValue = this.config.get('reverse_status') ? 'low' : 'high';
+                        gpio_options.reconfigureDirection = true;
+                        initServiceStatus = true;
+                        break;
+                    case 'off':
+                        initPinValue = this.config.get('reverse_status') ? 'high' : 'low';
+                        gpio_options.reconfigureDirection = true;
+                        initServiceStatus = false;
+                        break;
+                    case 'ignore': 
+                    default:
+                        init_status = 'ignore';
+                        initPinValue = 'out';
+                        gpio_options.reconfigureDirection = false;
+                        break;
+                }
+                return {gpio_options, initPinValue, init_status, initServiceStatus};
+            } else {
+                return {gpio_options};
             }
-
         };
 
         const onGPIOValueChange = (device, service, characteristic) => {
