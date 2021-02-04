@@ -51,7 +51,7 @@ class raspberry_simple_gpio_plugin {
         this.services = [];
 
         // function
-        this.accessory_update_status = (status) => this.log.warn('can not update senser status yet.');
+        this.accessory_update_status = (status) => this.log.warn('can not update sensor status yet.');
     }
 
     getServices() {
@@ -96,9 +96,9 @@ class raspberry_simple_gpio_plugin {
         this.config.fulfill('name', 'Raspberry-GPIO');
 
         if (!this.config.checkValueValid('accessory_type', 
-            ['fan', 'outlet', 'switch', 'contact_senser', 'leak_senser',
-            'motion_senser', 'occupancy_senser', 'smoke_senser'])) {
-            this.log.error('value of accessory_type can only be fan/outlet/switch/contact_senser/leak_senser/motion_senser/occupancy_senser/smoke_senser');
+            ['fan', 'outlet', 'switch', 'contact_sensor', 'leak_sensor',
+            'motion_sensor', 'occupancy_sensor', 'smoke_sensor'])) {
+            this.log.error('value of accessory_type can only be fan/outlet/switch/contact_sensor/leak_sensor/motion_sensor/occupancy_sensor/smoke_sensor');
             return false;
         }
 
