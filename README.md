@@ -1,7 +1,5 @@
 ## homebridge-raspberry-simplegpio
 <p align="center">
-  <!-- <img src="https://raw.githubusercontent.com/elfive/homebridge-raspberry-simplegpio/master/images/petkit-feeder-mini.jpg">
-  <br> -->
   <a href="https://www.npmjs.com/package/homebridge-raspberry-simplegpio">
     <img src="https://flat.badgen.net/npm/v/homebridge-raspberry-simplegpio" alt="NPM Version" />
   </a>
